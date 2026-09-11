@@ -2264,24 +2264,26 @@ class RoomClient {
             if (init) {
                 stream = initStream;
             } else {
+                let sharePrep = { cancelled: false, audioTrack: null };
+                if (screen && window.prepareNativeSharing) {
+                    sharePrep = await window.prepareNativeSharing();
+                }
+
+                if (sharePrep.cancelled) {
+                    console.log('[NativeShare] produce aborted, picker cancelled');
+                    return;
+                }
+
                 stream = screen
                     ? await navigator.mediaDevices.getDisplayMedia(mediaConstraints)
                     : await navigator.mediaDevices.getUserMedia(mediaConstraints);
 
                 // On Linux/Electron, getDisplayMedia never returns a system-audio track.
-                // If a native audio track was captured via the Electron main process
-                // (PulseAudio/PipeWire), attach it here so produceScreenAudio() below
-                // finds an audio track and produces it automatically.
-                if (screen && !stream.getAudioTracks().length && window.createNativeAudioTrack) {
-                    try {
-                        const nativeAudioTrack = await window.createNativeAudioTrack();
-                        if (nativeAudioTrack) {
-                            stream.addTrack(nativeAudioTrack);
-                            console.log('[NativeAudio] track nativa anexada ao screenStream');
-                        }
-                    } catch (err) {
-                        console.error('[NativeAudio] falha ao anexar track nativa', err);
-                    }
+                // Use the audio track the picker flow prepared above, unless the OS
+                // already gave us one on its own.
+                if (screen && !stream.getAudioTracks().length && sharePrep.audioTrack) {
+                    stream.addTrack(sharePrep.audioTrack);
+                    console.log('[NativeAudio] track nativa anexada ao screenStream');
                 }
 
                 // Handle Virtual Background and Blur using MediaPipe

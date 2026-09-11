@@ -3248,23 +3248,26 @@ async function toggleScreenSharing() {
         const selectedValue = getId('videoFps').options[localStorageSettings.screen_fps].value;
         const customFrameRate = parseInt(selectedValue, 10);
         const frameRate = selectedValue == 'max' ? defaultFrameRate : customFrameRate;
+
+        let sharePrep = { cancelled: false, audioTrack: null };
+        if (window.prepareNativeSharing) {
+            sharePrep = await window.prepareNativeSharing();
+        }
+
+        if (sharePrep.cancelled) {
+            joinRoomWithScreen = false;
+            return checkInitVideo(isVideoAllowed);
+        }
+
         await navigator.mediaDevices
             .getDisplayMedia({ audio: true, video: { frameRate: frameRate } })
             .then(async (screenStream) => {
                 // On Linux/Electron, getDisplayMedia never returns a system-audio track.
-                // If a native audio track was captured via the Electron main process
-                // (PulseAudio/PipeWire), attach it here so MiroTalk's produceScreenAudio
-                // picks it up automatically.
-                if (!screenStream.getAudioTracks().length && window.createNativeAudioTrack) {
-                    try {
-                        const nativeAudioTrack = await window.createNativeAudioTrack();
-                        if (nativeAudioTrack) {
-                            screenStream.addTrack(nativeAudioTrack);
-                            console.log('[NativeAudio] track anexada ao initStream (pre-join)');
-                        }
-                    } catch (err) {
-                        console.error('[NativeAudio] falha ao anexar track ao initStream', err);
-                    }
+                // Use the audio track prepared by the picker flow above, unless the OS
+                // already gave us one on its own (e.g. some Windows/macOS setups).
+                if (!screenStream.getAudioTracks().length && sharePrep.audioTrack) {
+                    screenStream.addTrack(sharePrep.audioTrack);
+                    console.log('[NativeAudio] track anexada ao initStream (pre-join)');
                 }
 
                 if (initVideo.classList.contains('mirror')) {
