@@ -464,7 +464,7 @@ class RoomClient {
         this.forceAV1 = false; // Force AV1 codec for webcam and screen sharing
         this.enableWebcamLayers = true; // Enable simulcast or SVC for webcam
         this.enableSharingLayers = true; // Enable simulcast or SVC for screen sharing
-        this.numSimulcastStreamsWebcam = 3; // Number of streams for simulcast in webcam
+        this.numSimulcastStreamsWebcam = 1; // Number of streams for simulcast in webcam
         this.numSimulcastStreamsSharing = 1; // Number of streams for simulcast in screen sharing
         this.webcamScalabilityMode = 'L3T3'; // Scalability Mode for webcam | 'L1T3' for VP8/H264 (in each simulcast encoding), 'L3T3_KEY' for VP9
         this.sharingScalabilityMode = 'L1T3'; // Scalability Mode for screen sharing | 'L1T3' for VP8/H264 (in each simulcast encoding), 'L3T3' for VP9
@@ -2338,7 +2338,8 @@ class RoomClient {
                 console.log('AUDIO ENABLE OPUS (channelCount: 2)');
                 params.codecOptions = {
                     opusStereo: true,
-                    opusDtx: true,
+                    opusMaxAverageBitrate: 256000,
+                    opusDtx: false,
                     opusFec: true,
                     opusNack: true,
                 };
@@ -2916,7 +2917,14 @@ class RoomClient {
         };
 
         return {
-            audio: true,
+            audio: {
+                channelCount: { ideal: 2 },
+                sampleRate: { ideal: 48000 },
+                sampleSize: { ideal: 16 },
+                echoCancellation: false,
+                noiseSuppression: false,
+                autoGainControl: false,
+            },
             video: videoConstraints,
         };
     }
@@ -3589,11 +3597,21 @@ class RoomClient {
                 appData: {
                     mediaType: mediaType.audio,
                 },
+                codecOptions: {
+                    opusStereo: true,
+                    opusMaxAverageBitrate: 256000,
+                    opusFec: true,
+                    opusNack: true,
+                },
             };
 
             const producerSa = await this.producerTransport.produce(params);
 
             console.log('PRODUCER SCREEN AUDIO', producerSa);
+
+            const sender = producerSa.rtpSender;
+
+            console.log('RTP SENDER PARAMETERS', sender.getParameters());
 
             this.producers.set(producerSa.id, producerSa);
             this.producerLabel.set(mediaType.audioTab, producerSa.id);

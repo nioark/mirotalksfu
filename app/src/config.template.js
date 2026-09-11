@@ -1973,11 +1973,10 @@ module.exports = {
              * - These values should be tuned based on Node resources
              * - Consider network plugin overhead (Calico, Cilium etc.)
              */
-            initialAvailableOutgoingBitrate: 2500000, // 2.5 Mbps initial bitrate
-            minimumAvailableOutgoingBitrate: 1000000, // 1 Mbps minimum guaranteed
-            maxIncomingBitrate: 3000000, // 3 Mbps max per producer
-
-            /**
+            initialAvailableOutgoingBitrate: 20000000, // 20 Mbps
+            minimumAvailableOutgoingBitrate: 1000000, // 1 Mbps
+            maxIncomingBitrate: 10000000,             // 10 Mbps
+                        /**
              * Data Channel Settings (mediasoup 3.20.0+)
              * - maxSendMessageSize    : Max size for outgoing SCTP messages (data channels)
              * - maxReceiveMessageSize : Max size for incoming SCTP messages (data channels)
