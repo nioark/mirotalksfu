@@ -2268,6 +2268,22 @@ class RoomClient {
                     ? await navigator.mediaDevices.getDisplayMedia(mediaConstraints)
                     : await navigator.mediaDevices.getUserMedia(mediaConstraints);
 
+                // On Linux/Electron, getDisplayMedia never returns a system-audio track.
+                // If a native audio track was captured via the Electron main process
+                // (PulseAudio/PipeWire), attach it here so produceScreenAudio() below
+                // finds an audio track and produces it automatically.
+                if (screen && !stream.getAudioTracks().length && window.createNativeAudioTrack) {
+                    try {
+                        const nativeAudioTrack = await window.createNativeAudioTrack();
+                        if (nativeAudioTrack) {
+                            stream.addTrack(nativeAudioTrack);
+                            console.log('[NativeAudio] track nativa anexada ao screenStream');
+                        }
+                    } catch (err) {
+                        console.error('[NativeAudio] falha ao anexar track nativa', err);
+                    }
+                }
+
                 // Handle Virtual Background and Blur using MediaPipe
                 if (video && isMediaStreamTrackAndTransformerSupported) {
                     const videoTrack = stream.getVideoTracks()[0];
@@ -3577,6 +3593,11 @@ class RoomClient {
                 this.event(_EVENTS.stopScreen);
                 if (this.producerLabel.has(mediaType.audioTab)) {
                     this.closeProducer(mediaType.audioTab, event);
+                }
+                if (window.stopNativeAudio) {
+                    window.stopNativeAudio().catch((err) =>
+                        console.error('[NativeAudio] stop error', err)
+                    );
                 }
                 break;
             default:

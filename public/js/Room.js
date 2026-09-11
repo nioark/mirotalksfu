@@ -3250,7 +3250,23 @@ async function toggleScreenSharing() {
         const frameRate = selectedValue == 'max' ? defaultFrameRate : customFrameRate;
         await navigator.mediaDevices
             .getDisplayMedia({ audio: true, video: { frameRate: frameRate } })
-            .then((screenStream) => {
+            .then(async (screenStream) => {
+                // On Linux/Electron, getDisplayMedia never returns a system-audio track.
+                // If a native audio track was captured via the Electron main process
+                // (PulseAudio/PipeWire), attach it here so MiroTalk's produceScreenAudio
+                // picks it up automatically.
+                if (!screenStream.getAudioTracks().length && window.createNativeAudioTrack) {
+                    try {
+                        const nativeAudioTrack = await window.createNativeAudioTrack();
+                        if (nativeAudioTrack) {
+                            screenStream.addTrack(nativeAudioTrack);
+                            console.log('[NativeAudio] track anexada ao initStream (pre-join)');
+                        }
+                    } catch (err) {
+                        console.error('[NativeAudio] falha ao anexar track ao initStream', err);
+                    }
+                }
+
                 if (initVideo.classList.contains('mirror')) {
                     initVideo.classList.toggle('mirror');
                 }
@@ -3272,6 +3288,13 @@ async function toggleScreenSharing() {
                 return checkInitVideo(isVideoAllowed);
             });
     } else {
+        if (window.stopNativeAudio) {
+            try {
+                await window.stopNativeAudio();
+            } catch (err) {
+                console.error('[NativeAudio] stop error', err);
+            }
+        }
         checkInitVideo(isVideoAllowed);
         hide(initStopScreenButton);
         show(initStartScreenButton);
