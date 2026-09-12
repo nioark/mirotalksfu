@@ -13,7 +13,6 @@ npm-debug.log
 
 # personal
 .env
-config.js
 docker-compose.yml
 docker-push.sh
 data
